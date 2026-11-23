@@ -1,0 +1,9 @@
+node_modules/
+backend/node_modules/
+backend/.env
+.env
+backend/document-vault.db
+backend/document-vault.db-shm
+backend/document-vault.db-wal
+backend/private_uploads/
+Folio_Vault_Updated.zip

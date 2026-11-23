@@ -1,0 +1,29 @@
+{
+  "name": "folio-vault-backend",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Multi-user cloud document management system",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "check": "node --check server.js && node --check config/db.js && node --check middleware/auth.js && node --check routes/auth.js && node --check routes/documents.js && node --check routes/folders.js && node --check routes/admin.js && node --check controllers/authController.js && node --check services/storageService.js && node --check services/accessService.js && node --check services/accessPolicy.js && node --check scripts/promoteAdmin.js && node --check models/User.js && node --check models/Document.js && node --check models/Folder.js && node --check models/DocumentVersion.js && node --check models/AuditLog.js && node --check models/Share.js && node --check models/Report.js && node --check models/PasswordResetToken.js",
+    "test": "node --test"
+  },
+  "engines": { "node": ">=20.19.0" },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1175.0",
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.7.5",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^9.12.3",
+    "multer": "^2.5.0",
+    "nodemailer": "^7.0.11",
+    "pdfjs-dist": "^6.5.438"
+  },
+  "devDependencies": { "nodemon": "^3.1.7" }
+}

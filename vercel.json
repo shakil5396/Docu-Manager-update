@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/[...path].js": {
+      "includeFiles": ["backend/**", "node_modules/pdfjs-dist/build/**"]
+    }
+  },
+  "rewrites": [
+    { "source": "/vendor/pdfjs/:path*", "destination": "/api/vendor/pdfjs/:path*" }
+  ]
+}
