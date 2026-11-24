@@ -15,7 +15,7 @@ const adminRoutes = require('./routes/admin');
 const app = express();
 const port = Number(process.env.PORT || 5000);
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) throw new Error('Set JWT_SECRET to a random value of at least 32 characters.');
-if (!process.env.AWS_S3_BUCKET || !process.env.MONGODB_URI) throw new Error('MONGODB_URI and AWS_S3_BUCKET are required; cloud mode has no local-storage fallback.');
+if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is required. File uploads are stored in MongoDB Atlas GridFS.');
 if (process.env.TRUST_PROXY && process.env.TRUST_PROXY !== '0') app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
 app.disable('x-powered-by');
 app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], baseUri: ["'self'"], objectSrc: ["'none'"], frameAncestors: ["'self'"], imgSrc: ["'self'", 'data:', 'blob:'], styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'], fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'], scriptSrc: ["'self'"], workerSrc: ["'self'", 'blob:'], connectSrc: ["'self'"], formAction: ["'self'"] } } }));

@@ -1,19 +1,17 @@
 # Folio Vault
 
-Folio Vault is a multi-user document manager built with HTML/CSS/JavaScript, Express, MongoDB/Mongoose, JWT sessions, and private Amazon S3 object storage. It reuses the existing `Assets/logo.png` and the midnight-blue workspace design.
+Folio Vault is a multi-user document manager with an HTML/CSS/JavaScript frontend, an Express API, MongoDB/Mongoose metadata, and private file storage in MongoDB Atlas GridFS. It reuses the existing `Assets/logo.png` and midnight-blue workspace design.
 
 ## Requirements
 
 - Node.js 20.19 or newer and npm
-- MongoDB 7+ (local or MongoDB Atlas)
-- A private S3 bucket and AWS credentials (use an IAM role in deployed environments)
-- SMTP connection details to deliver password reset messages
+- MongoDB 7+ (Atlas recommended)
+- A long random `JWT_SECRET` (at least 32 characters)
 
-## Local setup
+## Run locally
 
-1. Copy `backend/.env.example` to `backend/.env` and set `MONGODB_URI`, `JWT_SECRET`, `AWS_REGION`, and `AWS_S3_BUCKET`. Use a random JWT secret of at least 32 characters. The server has no local database or file-storage fallback.
-2. Create an S3 bucket with **Block Public Access** enabled. Give the app's IAM identity only the S3 permissions it needs on that bucket: `PutObject`, `GetObject`, and `DeleteObject`. The app sets server-side encryption on uploaded objects.
-3. In PowerShell, run:
+1. Copy `backend/.env.example` to `backend/.env` and set `MONGODB_URI` and `JWT_SECRET`. The Atlas URI should name the application database, for example `mongodb+srv://<user>:<password>@<cluster>/<database>?retryWrites=true&w=majority`. URL-encode special characters in credentials. Never commit `.env` or share the URI.
+2. In PowerShell:
 
 ```powershell
 cd backend
@@ -21,58 +19,54 @@ npm install
 npm start
 ```
 
-Open [http://localhost:5000](http://localhost:5000), create an account, and upload a supported file. Set `SMTP_URL`, `SMTP_FROM`, and `APP_BASE_URL` to enable password reset delivery.
+Open [http://localhost:5000](http://localhost:5000). Set `SMTP_URL`, `SMTP_FROM`, and `APP_BASE_URL` only if you want password reset emails.
 
-## Deploy with GitHub, Vercel, and MongoDB Atlas
+## Deploy to Render with GitHub and Atlas Free
 
-The repository includes a Vercel serverless entry at `api/[...path].js` and a root `package.json` so Vercel installs the backend dependencies. The local Express start command remains available from `backend/`.
+The recommended setup is a Render **Web Service** using the GitHub repository root, build command `npm install`, and start command `node backend/server.js`. Select Node as the runtime. The root `package.json` installs the runtime dependencies.
 
-1. Create a MongoDB Atlas cluster and a database user. Copy the application's `mongodb+srv://` connection string and replace its database username, password, and database name. URL-encode special characters in the username or password. Add the Vercel deployment's network access to the Atlas project before testing. Atlas IP access lists restrict database connections; `0.0.0.0/0` opens network reachability from anywhere, so use it only if you accept that exposure and keep a strong, least-privilege database user.
-2. Create a private S3 bucket with Block Public Access enabled and an IAM identity limited to that bucket. The runtime needs S3 `PutObject`, `GetObject`, and `DeleteObject` permissions. Vercel does not provide an AWS instance role by default, so use Vercel encrypted environment variables for `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, or use a supported AWS federation setup. Never commit these values.
-3. Push this project to a GitHub repository. In Vercel, choose **Add New → Project**, import that repository, and leave the project root at the repository root. No frontend build command is required.
-4. In Vercel **Settings → Environment Variables**, add `MONGODB_URI`, `JWT_SECRET` (a random value with at least 32 characters), `AWS_S3_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `COOKIE_SECURE=true`, `NODE_ENV=production`, `TRUST_PROXY=1`, `MAX_FILE_SIZE_MB=4`, `APP_BASE_URL` (the Vercel URL), `SMTP_URL`, and `SMTP_FROM`. Add them to Production and Preview only as appropriate, then redeploy after saving them.
-5. Open the deployed site, register an account, and verify `/api/health`. Promote the first administrator from a trusted terminal with the same `MONGODB_URI`: `cd backend; npm install; node scripts/promoteAdmin.js account@example.com`. Configure `MONGODB_URI` in `backend/.env` for that command, and remove the local secret file afterwards.
-6. After attaching a custom domain, update `APP_BASE_URL` to its HTTPS URL and redeploy. Test registration, login/logout, upload, preview, sharing, account recovery email, and admin access with separate test accounts before using real documents.
+Set these Render environment variables under **Environment**:
 
-**Vercel upload limit:** the current upload route sends file bytes through a Vercel Function. Vercel documents a 4.5 MB request/response payload limit by default, while a newer 20 MiB option is a public beta. The Vercel environment value above sets a 4 MB per-file application limit to leave room for multipart overhead. The larger 100 MB limit remains suitable for a long-running host, but does not bypass Vercel's platform limit. Large-file support on Vercel needs a direct-to-S3 presigned upload flow, which is not implemented in this project.
+| Key | Value |
+| --- | --- |
+| `MONGODB_URI` | Your Atlas application database connection string (keep it private) |
+| `JWT_SECRET` | A randomly generated secret of 32+ characters |
+| `NODE_ENV` | `production` |
+| `COOKIE_SECURE` | `true` |
+| `TRUST_PROXY` | `1` |
+| `ATLAS_FILE_STORAGE_LIMIT_MB` | `250` (default) |
+| `MAX_FILE_SIZE_MB` | `20` (default) |
+| `APP_BASE_URL` | Your HTTPS Render service URL |
 
-The function adapter caches a MongoDB connection per warm serverless instance, but Atlas/S3 setup and deployed end-to-end behavior still need to be verified in the owner's accounts. Vercel's default serverless deployments do not make the app's process-local rate-limit counter a shared multi-instance limit; use a shared store for production scale.
+Do not set AWS or S3 variables. Files are written to a GridFS bucket in Atlas and therefore do not depend on Render's temporary filesystem. GridFS data consumes the same Atlas storage quota as the rest of the database. Atlas M0 currently has a 512 MB total storage limit; this app caps file content at 250 MB by default to leave room for database records and indexes. A free tier is suitable for a small demo, not large production archives. If the existing Atlas project already uses substantial storage, lower `ATLAS_FILE_STORAGE_LIMIT_MB` accordingly.
 
-## Make the first administrator
+Create an Atlas database user with only the needed read/write access to the app database, then allow the Render service's outbound IP ranges in Atlas **Network Access**. Do not leave `0.0.0.0/0` enabled longer than necessary. Keep `MONGODB_URI` and `JWT_SECRET` in Render's secret environment settings, never in GitHub. If the Atlas password was shared in chat, rotate it in Atlas and update the Render value before redeploying.
 
-Register the administrator account through the app, then promote it from the backend after configuring `MONGODB_URI`:
+After setting the variables, save and redeploy the latest GitHub commit. Check `https://<your-service>/api/health` for a successful response with `database: "connected"`; then register a test account and verify file upload, preview, and download.
+
+Render's free service may spin down after inactivity, which can make its first request slow. The app does not depend on a Render persistent disk for uploaded files. The GridFS quota reservation is stored in Atlas and enforced across service instances.
+
+## First administrator
+
+Register the administrator account through the app, then promote it from a trusted terminal using the same Atlas URI:
 
 ```powershell
 cd backend
+npm install
 node scripts/promoteAdmin.js account@example.com
 ```
 
-This command changes that account's role in MongoDB and invalidates its current sessions. Registration never accepts a role from the browser. Admin routes are checked server-side.
+Registration cannot assign an administrator role. Admin routes are authorized by the backend.
 
-## Implemented features
+## Features
 
 - User registration/login/logout, bcrypt password hashes, expiring JWT cookies, account profile, single-use password reset links, and suspended-account enforcement.
 - MongoDB models for users, documents, folders, document versions, shares, reports, password reset tokens, and audit logs.
-- Private S3 uploads for one or multiple files, per-user storage quotas, server-side size and file-signature checks, authorized preview/download/print, replacement version history, recycle/restore/permanent delete, search, sorting, favorites, categories, and folder moves.
-- PDF.js preview with page navigation and zoom. Images and text preview in-browser. Word and spreadsheet files remain downloadable originals.
-- Explicit document shares with view-only or download permission. Admin users see aggregate statistics, user account status, reports, and audit records. Admin endpoints do not grant private document access.
-- Rate limiting, Helmet security headers, HttpOnly SameSite cookies, server-side owner checks, and private object keys.
-
-## Cloud configuration and deployment
-
-- Store production secrets in your host's secret manager. Do not commit `backend/.env` or AWS keys.
-- Use MongoDB Atlas or a private MongoDB deployment with TLS and backups. The app creates its Mongoose indexes at startup in development and explicitly ensures model indexes in production.
-- Keep the S3 bucket private. Use an instance/task IAM role instead of long-lived AWS keys when possible. Configure bucket lifecycle, versioning, retention, and backup to match your recovery requirements.
-- Set `NODE_ENV=production`, `COOKIE_SECURE=true`, `APP_BASE_URL` to the HTTPS site URL, `MONGODB_URI`, `AWS_REGION`, `AWS_S3_BUCKET`, `JWT_SECRET`, and SMTP variables. Configure `TRUST_PROXY` only for the known number of trusted proxy hops.
-- The included rate limiter uses an in-memory store. Use a shared rate-limit store such as Redis when running multiple server instances.
-- Use a process manager/container and TLS reverse proxy. Set CORS only if deploying a separate frontend origin; the included app is same-origin and intentionally does not enable cross-origin credentials.
+- Private GridFS uploads, per-user and global capacity limits, size and file-signature checks, authorized preview/download, replacement version history, recycle/restore/permanent delete, search, sorting, favorites, categories, and folders.
+- PDF.js preview with page navigation and zoom; in-browser image and text previews; Word and spreadsheet files remain downloadable originals.
+- Explicit document shares with view-only or download permission. Admin statistics and user management do not grant access to private files.
+- Rate limiting, Helmet security headers, HttpOnly SameSite cookies, server-side ownership checks, and private object keys.
 
 ## Verification
 
-Run `npm run check` and `npm test` from `backend/`. The isolation tests check the owner/shared query policy for multiple account IDs and confirm an administrator role alone does not grant file access.
-
-Cloud integration and browser workflows require configured MongoDB, AWS S3, SMTP, and installed dependencies. They have not been exercised in this workspace. Do not treat account recovery email delivery, cloud persistence, or end-to-end isolation as verified until those configured flows are tested in your deployment environment.
-
-## Compatibility routes
-
-`login.html`, `register.html`, `document.html`, `upload.html`, and `view.html` forward users into the current authentication/dashboard flows.
+Run `npm run check` and `npm test` from `backend/`. The included tests cover document ownership and sharing policy. Cloud persistence and browser workflows require a configured Atlas account and must be verified in the deployed environment; they are not claimed as tested here.
