@@ -62,9 +62,11 @@ async function putStream(source, size, key, contentType) {
   try {
     await pipeline(source, upload);
   } catch (error) {
-    const partial = await database().collection(`${bucketName}.files`).findOne({ _id: upload.id }).catch(() => null);
-    if (partial) await store.delete(upload.id).catch(() => {});
-    await release(size).catch(() => {});
+    try {
+      const partial = await database().collection(`${bucketName}.files`).findOne({ _id: upload.id });
+      if (partial) await store.delete(upload.id);
+    } catch (cleanupError) { console.error('Partial upload cleanup failed:', cleanupError.message); }
+    try { await release(size); } catch (cleanupError) { console.error('Upload capacity reservation cleanup failed:', cleanupError.message); }
     throw error;
   }
 }

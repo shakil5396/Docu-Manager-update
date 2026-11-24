@@ -107,7 +107,7 @@ exports.googleCallback = async (req, res) => {
 };
 
 exports.me = (req, res) => res.json({ success: true, user: req.user.toJSON() });
-exports.logout = async (req, res) => { if (req.user) await recordAudit(req, 'auth.logout', 'user', req.user.id, req.user._id); res.clearCookie('folio_session', { ...cookieOptions(), maxAge: undefined }); res.json({ success: true }); };
+exports.logout = async (req, res, next) => { try { if (req.user) { await recordAudit(req, 'auth.logout', 'user', req.user.id, req.user._id); await User.updateOne({ _id: req.user._id }, { $inc: { sessionVersion: 1 } }); } res.clearCookie('folio_session', { ...cookieOptions(), maxAge: undefined }); res.setHeader('Cache-Control', 'no-store'); res.json({ success: true }); } catch (err) { next(err); } };
 exports.updateProfile = async (req, res, next) => { try {
   const name = String(req.body.name || '').trim(); if (!name || name.length > 100) return res.status(400).json({ success: false, message: 'Name must be between 1 and 100 characters.' });
   const user = await User.findOneAndUpdate({ _id: req.user._id, status: 'active' }, { $set: { name } }, { new: true, runValidators: true }).select('name email role status storageUsed storageLimit createdAt emailVerified avatarUrl'); if (!user) return res.status(404).json({ success: false, message: 'Account not found.' }); req.user = user; await recordAudit(req, 'profile.update', 'user', user.id, user._id); res.json({ success: true, user });
@@ -130,7 +130,7 @@ exports.uploadAvatar = async (req, res, next) => { try {
   if (!valid) return res.status(400).json({ success: false, message: 'The image contents do not match the selected format.' });
   const key = `avatars/${req.user.id}/${crypto.randomUUID()}.${spec.ext}`; await putBuffer(buffer, key, req.file.mimetype);
   const oldKey = req.user.avatarKey; const user = await User.findByIdAndUpdate(req.user._id, { $set: { avatarKey: key } }, { new: true }).select('name email role status storageUsed storageLimit createdAt emailVerified avatarUrl +avatarKey');
-  if (!user) { await deleteFile(key).catch(() => {}); return res.status(404).json({ success: false, message: 'Account not found.' }); }
+  if (!user) { try { await deleteFile(key); } catch (cleanupError) { console.error('Orphaned avatar cleanup failed:', cleanupError.message); } return res.status(404).json({ success: false, message: 'Account not found.' }); }
   if (oldKey) await deleteFile(oldKey).catch(err => console.error('Old avatar cleanup failed:', err.message)); req.user = user; await recordAudit(req, 'profile.avatar_update', 'user', user.id, user._id); res.json({ success: true, user: user.toJSON() });
 } catch (err) { next(err); } };
 
