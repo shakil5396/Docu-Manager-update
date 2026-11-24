@@ -15,14 +15,14 @@
     form.elements.password.autocomplete = value ? 'new-password' : 'current-password';
     $('togglePassword').textContent = 'Show'; $('togglePassword').setAttribute('aria-label', 'Show password'); form.elements.password.type = 'password';
     form.querySelector('button[type=submit]').innerHTML = value ? 'Create account <span>→</span>' : 'Sign in <span>→</span>';
-    $('switchPrompt').textContent = value ? 'Already have an account?' : 'New to Folio?'; $('switchMode').textContent = value ? 'Sign in' : 'Create an account'; $('switchMode').hidden = false;
+    $('authModeSwitch').hidden = false; $('modeSignIn').classList.toggle('is-active', !value); $('modeSignUp').classList.toggle('is-active', value); $('modeSignIn').setAttribute('aria-pressed', String(!value)); $('modeSignUp').setAttribute('aria-pressed', String(value));
     $('forgotLink').hidden = value; $('authDivider').hidden = value; $('googleLogin').hidden = value;
   };
   function showVerification(email) {
     verificationEmail = email; $('verificationEmail').textContent = email; $('verificationPanel').hidden = false; form.hidden = true;
     $('authTitle').textContent = 'Verify your email'; $('authIntro').textContent = 'One quick check before you enter your private vault.';
-    $('forgotLink').hidden = true; $('authDivider').hidden = true; $('googleLogin').hidden = true; $('switchPrompt').textContent = '';
-    $('switchMode').hidden = true; $('verificationCode').value = ''; clearError(); startResendTimer(60); $('verificationCode').focus();
+    $('forgotLink').hidden = true; $('authDivider').hidden = true; $('googleLogin').hidden = true; $('authModeSwitch').hidden = true;
+    $('verificationCode').value = ''; clearError(); startResendTimer(60); $('verificationCode').focus();
   }
   function startResendTimer(seconds) {
     clearInterval(resendTimer); const button = $('resendCode'); let remaining = seconds; button.disabled = remaining > 0;
@@ -33,7 +33,7 @@
     const response = await fetch(`/api/auth/${path}`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const data = await response.json().catch(() => ({})); if (!response.ok) { const error = new Error(data.message || 'Unable to complete this request.'); error.code = data.code; error.status = response.status; throw error; } return data;
   }
-  $('switchMode').addEventListener('click', () => setMode(!registering));
+  $('modeSignIn').addEventListener('click', () => setMode(false)); $('modeSignUp').addEventListener('click', () => setMode(true));
   $('togglePassword').addEventListener('click', () => { const input = form.elements.password, visible = input.type === 'password'; input.type = visible ? 'text' : 'password'; $('togglePassword').textContent = visible ? 'Hide' : 'Show'; $('togglePassword').setAttribute('aria-label', visible ? 'Hide password' : 'Show password'); input.focus(); });
   $('backToLogin').addEventListener('click', () => { clearInterval(resendTimer); form.elements.email.value = ''; form.elements.password.value = ''; setMode(false); form.elements.email.focus(); });
   $('resendCode').addEventListener('click', async () => { const button = $('resendCode'); button.disabled = true; try { await request('resend-verification', { email: verificationEmail }); startResendTimer(60); showError('A new code has been sent.'); errorBox.classList.add('is-success'); } catch (error) { showError(error.message); button.disabled = false; } });
