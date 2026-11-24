@@ -42,4 +42,8 @@ app.use((req, res) => req.path.startsWith('/api/') ? res.status(404).json({ succ
 app.use((error, req, res, _next) => { if (error instanceof multer.MulterError) return res.status(error.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({ success: false, message: error.code === 'LIMIT_FILE_SIZE' ? 'The file exceeds your upload size limit.' : 'The upload could not be accepted.' }); const status = error.status || (error.name === 'ValidationError' || error.name === 'CastError' ? 400 : 500); console.error('Request error:', error.message); res.status(status).json({ success: false, message: status >= 500 ? 'The request could not be completed.' : error.message }); });
 async function start() { await connectDatabase(); const server = app.listen(port, () => console.log(`Folio Vault API listening on http://localhost:${port}`)); const shutdown = () => server.close(async () => { await mongoose.disconnect(); process.exit(0); }); process.on('SIGINT', shutdown); process.on('SIGTERM', shutdown); }
 if (require.main === module) start().catch(error => { console.error('Startup failed:', error.message); process.exit(1); });
-module.exports = { app, start };
+// Export the Express app itself for Vercel's Express runtime, while retaining
+// named properties for the explicit api/[...path].js adapter and local tools.
+module.exports = app;
+module.exports.app = app;
+module.exports.start = start;
