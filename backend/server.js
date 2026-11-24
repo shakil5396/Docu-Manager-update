@@ -33,9 +33,11 @@ const rootPdfJsPath = path.join(__dirname, '..', 'node_modules', 'pdfjs-dist', '
 const pdfJsBuildPath = fs.existsSync(localPdfJsPath) ? localPdfJsPath : rootPdfJsPath;
 app.use('/vendor/pdfjs', express.static(pdfJsBuildPath, { immutable: true, maxAge: '1d', index: false }));
 app.use('/api/vendor/pdfjs', express.static(pdfJsBuildPath, { immutable: true, maxAge: '1d', index: false }));
+app.use((req, res, next) => { if (!req.path.startsWith('/api/')) return next(); connectDatabase().then(() => next()).catch(next); });
 app.use('/api/auth', authRoutes); app.use('/api/documents', documentRoutes); app.use('/api/folders', folderRoutes); app.use('/api/admin', adminRoutes);
 app.get('/api/health', (_req, res) => res.json({ success: true, database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected', service: 'Folio Vault' }));
 app.use(['/backend', '/uploads', '/private_uploads'], (_req, res) => res.status(404).send('Not found'));
+app.use(express.static(path.join(__dirname, '..', 'public'), { index: false, dotfiles: 'deny', setHeaders(res, file) { if (file.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache'); } }));
 app.use(express.static(path.join(__dirname, '..'), { index: false, dotfiles: 'deny', setHeaders(res, file) { if (file.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache'); } }));
 app.get('/', (_req, res) => res.sendFile(path.join(__dirname, '..', 'index.html')));
 app.use((req, res) => req.path.startsWith('/api/') ? res.status(404).json({ success: false, message: 'API route not found.' }) : res.status(404).sendFile(path.join(__dirname, '..', 'index.html')));
