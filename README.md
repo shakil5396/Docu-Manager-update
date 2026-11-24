@@ -63,7 +63,8 @@ Registration cannot assign an administrator role. Admin routes are authorized by
 - User registration/login/logout, bcrypt password hashes, expiring JWT cookies, account profile, single-use password reset links, and suspended-account enforcement.
 - MongoDB models for users, documents, folders, document versions, shares, reports, password reset tokens, and audit logs.
 - Private GridFS uploads, per-user and global capacity limits, size and file-signature checks, authorized preview/download, replacement version history, recycle/restore/permanent delete, search, sorting, favorites, categories, and folders.
-- PDF.js preview with page navigation and zoom; in-browser image and text previews; Word and spreadsheet files remain downloadable originals.
+- A dedicated Digital Vault with separate upload and explore experiences, six MIME-type collections, category search and sorting, grid/list layouts, PDF page thumbnails, and photo previews.
+- Drag-and-drop multi-file upload with supported-type/size validation, category and folder selection, and transfer progress. PDF.js supports page navigation, zoom, fit-to-width, and print; images can be zoomed and printed, CSV gets a table preview, and unsupported Office formats remain downloadable originals with an honest preview fallback.
 - Explicit document shares with view-only or download permission. Admin statistics and user management do not grant access to private files.
 - Rate limiting, Helmet security headers, HttpOnly SameSite cookies, server-side ownership checks, and private object keys.
 
