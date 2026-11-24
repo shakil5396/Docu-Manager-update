@@ -29,17 +29,18 @@
     if (state.category !== 'all') result = result.filter(doc => String(doc.category || 'other').toLowerCase() === state.category);
     if (state.query) result = result.filter(doc => `${doc.name} ${doc.original_name} ${doc.category} ${doc.description} ${doc.tags}`.toLowerCase().includes(state.query));
     const sort = $('#sortSelect').value;
-    return result.sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name) : sort === 'oldest' ? new Date(a.created_at) - new Date(b.created_at) : sort === 'largest' ? b.file_size - a.file_size : new Date(b.created_at) - new Date(a.created_at));
+    return result.sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name) : sort === 'name-desc' ? b.name.localeCompare(a.name) : sort === 'oldest' ? new Date(a.created_at) - new Date(b.created_at) : sort === 'smallest' ? a.file_size - b.file_size : sort === 'largest' ? b.file_size - a.file_size : new Date(b.created_at) - new Date(a.created_at));
   }
   function render() {
     const current = state.view === 'folder' ? state.folders.find(f => String(f.id) === String(state.folderId))?.name || 'Folder' : ({ overview: 'Overview', documents: 'All documents', favorites: 'Starred', folders: 'Folders', trash: 'Recycle bin', recent: 'Recent files', shared: 'Shared with me', settings: 'Settings' }[state.view] || 'Overview');
     $('#crumbCurrent').textContent = current; $('#pageTitle').textContent = state.view === 'overview' ? `Your workspace, in focus.` : current; $('#pageSubtitle').textContent = state.view === 'overview' ? 'A quieter place for the things you need to keep.' : state.view === 'trash' ? 'Items in trash are only visible to you.' : 'Everything you keep, thoughtfully together.';
     $('#listTitle').firstChild.textContent = state.view === 'overview' ? 'Recent uploads ' : current + ' ';
     $('#emptyTitle').textContent = state.view === 'trash' ? 'Your trash is empty' : 'Nothing here just yet'; $('#emptyText').textContent = state.view === 'trash' ? 'Deleted documents will appear here.' : 'Upload your first document and it will feel right at home.';
-    document.querySelectorAll('.vault-nav a').forEach(a => a.classList.toggle('active', a.dataset.view === state.view));
+    document.querySelectorAll('.vault-nav a[data-view]').forEach(a => a.classList.toggle('active', a.dataset.view === state.view));
+    document.querySelectorAll('.vault-nav a[data-vault-category]').forEach(a => a.classList.toggle('active', state.view === 'documents' && a.dataset.vaultCategory === state.vaultType));
     const docs = filteredDocs(); $('#visibleCount').textContent = docs.length; $('#documentList').replaceChildren(); $('#emptyState').style.display = docs.length ? 'none' : 'grid';
     docs.slice(0, state.view === 'overview' ? 8 : undefined).forEach(doc => $('#documentList').append(createDocumentRow(doc)));
-    const inVault = state.view === 'documents'; $('#vaultWorkspace').hidden = !inVault; $('#legacyDocumentsView').hidden = inVault; $('#overviewGrid').hidden = inVault; $('#folderSection').hidden = inVault; if (inVault) renderVault();
+    const inVault = state.view === 'documents'; $('#vaultWorkspace').hidden = !inVault; $('#legacyDocumentsView').hidden = inVault; $('#overviewGrid').hidden = inVault; $('#folderSection').hidden = inVault; $('#viewDocumentsButton').hidden = inVault; $('#emptyTrashButton').hidden = state.view !== 'trash' || !docs.length; if (inVault) renderVault();
     renderFolders(); renderStats();
   }
   const vaultTypeNames = { pdf: 'PDF Library', image: 'Photo Gallery', document: 'Documents', spreadsheet: 'Spreadsheets', presentation: 'Presentations', other: 'Other Files' };
@@ -54,11 +55,12 @@
     let items = files.filter(doc => kind(doc) === type);
     if (search) items = items.filter(doc => `${doc.name || ''} ${doc.original_name || ''} ${doc.category || ''} ${doc.description || ''}`.toLowerCase().includes(search));
     const sort = $('#vaultSort').value;
-    items.sort((a, b) => sort === 'name' ? String(a.name || '').localeCompare(String(b.name || '')) : sort === 'oldest' ? new Date(a.created_at || 0) - new Date(b.created_at || 0) : sort === 'largest' ? Number(b.file_size || 0) - Number(a.file_size || 0) : new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    items.sort((a, b) => sort === 'name' ? String(a.name || '').localeCompare(String(b.name || '')) : sort === 'name-desc' ? String(b.name || '').localeCompare(String(a.name || '')) : sort === 'oldest' ? new Date(a.created_at || 0) - new Date(b.created_at || 0) : sort === 'smallest' ? Number(a.file_size || 0) - Number(b.file_size || 0) : sort === 'largest' ? Number(b.file_size || 0) - Number(a.file_size || 0) : new Date(b.created_at || 0) - new Date(a.created_at || 0));
     $('#vaultSectionTitle').firstChild.textContent = vaultTypeNames[type];
     $('#vaultTypeCount').textContent = counts[type] || 0;
     $('#vaultSectionDescription').textContent = vaultTypeDescriptions[type];
     $('#vaultResultLabel').textContent = `Showing ${items.length} ${vaultTypeNames[type].toLowerCase()}${search ? ` for “${state.vaultQuery.trim()}”` : ''}`;
+    $('#vaultClearFilters').hidden = !search && sort === 'recent';
     document.querySelectorAll('.vault-type-tab').forEach(button => { const selected = button.dataset.vaultType === type; button.classList.toggle('is-active', selected); button.setAttribute('aria-selected', String(selected)); });
     const grid = $('#vaultGrid'); grid.dataset.layout = state.vaultLayout; grid.replaceChildren();
     const currentFolder = $('#vaultUploadFolder').value;

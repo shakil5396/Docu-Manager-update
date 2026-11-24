@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { Readable } = require('stream');
 const { pipeline } = require('stream/promises');
 const mongoose = require('mongoose');
 
@@ -54,19 +55,22 @@ async function release(bytes) {
   if (bytes > 0) await (await ledger()).updateOne({ _id: bucketName }, { $inc: { used: -bytes } });
 }
 
-async function putFile(file, key, contentType) {
-  await reserve(file.size);
+async function putStream(source, size, key, contentType) {
+  await reserve(size);
   const store = bucket();
   const upload = store.openUploadStream(key, { metadata: { contentType } });
   try {
-    await pipeline(fs.createReadStream(file.path), upload);
+    await pipeline(source, upload);
   } catch (error) {
     const partial = await database().collection(`${bucketName}.files`).findOne({ _id: upload.id }).catch(() => null);
     if (partial) await store.delete(upload.id).catch(() => {});
-    await release(file.size).catch(() => {});
+    await release(size).catch(() => {});
     throw error;
   }
 }
+
+async function putFile(file, key, contentType) { return putStream(fs.createReadStream(file.path), file.size, key, contentType); }
+async function putBuffer(buffer, key, contentType) { return putStream(Readable.from(buffer), buffer.length, key, contentType); }
 
 async function getFile(key) {
   const files = database().collection(`${bucketName}.files`);
@@ -87,4 +91,4 @@ async function deleteFile(key) {
   await release(file.length);
 }
 
-module.exports = { putFile, getFile, deleteFile };
+module.exports = { putFile, putBuffer, getFile, deleteFile };

@@ -5,7 +5,7 @@ async function requireAuth(req, res, next) {
     const token = req.cookies?.folio_session || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
     if (!token) return res.status(401).json({ success: false, message: 'Sign in to continue.' });
     const payload = jwt.verify(token, process.env.JWT_SECRET, { issuer: 'folio-vault' });
-    const user = await User.findById(payload.sub).select('name email role status storageUsed storageLimit createdAt +sessionVersion');
+    const user = await User.findById(payload.sub).select('name email role status storageUsed storageLimit createdAt emailVerified avatarUrl +avatarKey +passwordEnabled +sessionVersion');
     if (!user || user.status !== 'active' || Number(payload.sv || 0) !== Number(user.sessionVersion || 0)) return res.status(401).json({ success: false, message: 'This account session is unavailable.' });
     req.user = user;
     next();

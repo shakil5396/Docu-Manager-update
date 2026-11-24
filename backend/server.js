@@ -18,12 +18,15 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) throw new Err
 if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is required. File uploads are stored in MongoDB Atlas GridFS.');
 if (process.env.TRUST_PROXY && process.env.TRUST_PROXY !== '0') app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
 app.disable('x-powered-by');
-app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], baseUri: ["'self'"], objectSrc: ["'none'"], frameAncestors: ["'self'"], imgSrc: ["'self'", 'data:', 'blob:'], styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'], fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'], scriptSrc: ["'self'"], workerSrc: ["'self'", 'blob:'], connectSrc: ["'self'"], formAction: ["'self'"] } } }));
+app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], baseUri: ["'self'"], objectSrc: ["'none'"], frameAncestors: ["'self'"], imgSrc: ["'self'", 'data:', 'blob:', 'https://lh3.googleusercontent.com'], styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'], fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'], scriptSrc: ["'self'"], workerSrc: ["'self'", 'blob:'], connectSrc: ["'self'"], formAction: ["'self'", 'https://accounts.google.com'] } } }));
 app.use(express.json({ limit: '64kb' })); app.use(express.urlencoded({ extended: false, limit: '16kb' })); app.use(cookieParser());
 app.use((req, res, next) => { if (['GET','HEAD','OPTIONS'].includes(req.method) || req.headers.authorization?.startsWith('Bearer ')) return next(); const origin = req.get('origin'); if (req.cookies.folio_session && !origin) return res.status(403).json({ success: false, message: 'A same-origin request is required.' }); if (origin) { try { const source = new URL(origin); if (source.host !== req.get('host') || !['http:','https:'].includes(source.protocol)) return res.status(403).json({ success: false, message: 'Cross-origin requests are not allowed.' }); } catch { return res.status(403).json({ success: false, message: 'Invalid request origin.' }); } } next(); });
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-8', legacyHeaders: false }));
 app.use('/api/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false }));
 app.use('/api/auth/register', rateLimit({ windowMs: 60 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false }));
+app.use('/api/auth/verify-email', rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false }));
+app.use('/api/auth/resend-verification', rateLimit({ windowMs: 60 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false }));
+app.use('/api/auth/password', rateLimit({ windowMs: 15 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false }));
 app.use('/api/auth/forgot-password', rateLimit({ windowMs: 60 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false }));
 const localPdfJsPath = path.join(__dirname, 'node_modules', 'pdfjs-dist', 'build');
 const rootPdfJsPath = path.join(__dirname, '..', 'node_modules', 'pdfjs-dist', 'build');
